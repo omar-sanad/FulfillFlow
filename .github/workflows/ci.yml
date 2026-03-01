@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate repository foundation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify no secrets committed
+        run: |
+          set -e
+          if git ls-files | grep -iE '(^|/)(\.env)$' ; then
+            echo "::error::A real .env file must not be committed"
+            exit 1
+          fi
+          echo "No .env file tracked."
+
+      - name: Validate compose.yaml syntax
+        run: docker compose -f compose.yaml config --quiet
+
+      - name: Check required top-level files exist
+        run: |
+          set -e
+          for f in README.md LICENSE .gitignore .editorconfig .env.example CONTRIBUTING.md SECURITY.md Makefile compose.yaml; do
+            if [ ! -f "$f" ]; then
+              echo "::error::Missing required file: $f"
+              exit 1
+            fi
+            echo "Found $f"
+          done
+
+      - name: Check ADRs exist
+        run: |
+          set -e
+          count=$(find docs/adr -name '0*.md' | wc -l)
+          echo "ADRs found: $count"
+          if [ "$count" -lt 10 ]; then
+            echo "::error::Expected at least 10 ADRs, found $count"
+            exit 1
+          fi
