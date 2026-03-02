@@ -22,14 +22,17 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-fulfillflow-dev}
-      # Per-service databases are created via an init script in a later
-      # milestone. Kept minimal here for the foundation.
+      POSTGRES_DB: fulfillflow
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./infrastructure/docker/postgres/init-databases.sh:/docker-entrypoint-initdb.d/02-init-databases.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_SUPERUSER:-postgres}"]
+      test:
+        - "CMD-SHELL"
+        - "psql -U ${POSTGRES_SUPERUSER:-postgres} -d fulfillflow_order -c 'select 1' >/dev/null 2>&1 && psql -U ${POSTGRES_SUPERUSER:-postgres} -d fulfillflow_inventory -c 'select 1' >/dev/null 2>&1 && psql -U ${POSTGRES_SUPERUSER:-postgres} -d fulfillflow_delivery -c 'select 1' >/dev/null 2>&1 && psql -U ${POSTGRES_SUPERUSER:-postgres} -d fulfillflow_notification -c 'select 1' >/dev/null 2>&1"
       interval: 10s
       timeout: 5s
       retries: 10
@@ -72,13 +75,31 @@ services:
       - fulfillflow
 
   # --------------------------------------------------------------------------
+  # Kafka topic provisioning (runs once after the broker is healthy)
+  # --------------------------------------------------------------------------
+  kafka-init:
+    image: confluentinc/cp-kafka:7.7.0
+    container_name: fulfillflow-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/provision-topics.sh"]
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+    volumes:
+      - ./infrastructure/docker/kafka/provision-topics.sh:/provision-topics.sh:ro
+    restart: "no"
+    networks:
+      - fulfillflow
+
+  # --------------------------------------------------------------------------
   # Keycloak -- OAuth2 / OIDC identity provider
   # --------------------------------------------------------------------------
   keycloak:
     image: quay.io/keycloak/keycloak:25.0
     container_name: fulfillflow-keycloak
     restart: unless-stopped
-    command: ["start-dev"]
+    command: ["start-dev", "--import-realm"]
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin-dev-password}
@@ -87,13 +108,14 @@ services:
     ports:
       - "8080:8080"
     healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nhost: localhost\\r\\n\\r\\n' >&3 && grep -q 'UP' <&3"]
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /realms/fulfillflow/.well-known/openid-configuration HTTP/1.1\\r\\nhost: localhost\\r\\n\\r\\n' >&3 && grep -q '200 OK' <&3"]
       interval: 10s
       timeout: 10s
       retries: 15
       start_period: 30s
     volumes:
       - keycloak-data:/opt/keycloak/data
+      - ./infrastructure/keycloak/realm/fulfillflow-realm.json:/opt/keycloak/data/import/fulfillflow-realm.json:ro
     networks:
       - fulfillflow
 
