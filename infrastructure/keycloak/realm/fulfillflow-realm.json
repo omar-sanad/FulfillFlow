@@ -1,0 +1,85 @@
+{
+  "realm": "fulfillflow",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "roles": {
+    "realm": [
+      { "name": "customer", "description": "Customer role" },
+      { "name": "administrator", "description": "Operations administrator role" },
+      { "name": "warehouse", "description": "Warehouse operator role" },
+      { "name": "courier", "description": "Courier role" }
+    ]
+  },
+  "groups": [],
+  "clients": [
+    {
+      "clientId": "fulfillflow-frontend",
+      "name": "FulfillFlow Frontend",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "rootUrl": "http://localhost:5173",
+      "baseUrl": "/",
+      "redirectUris": ["http://localhost:5173/*", "http://localhost:5173"],
+      "webOrigins": ["http://localhost:5173"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "customer",
+      "enabled": true,
+      "email": "customer@fulfillflow.dev",
+      "emailVerified": true,
+      "firstName": "Demo",
+      "lastName": "Customer",
+      "credentials": [{ "type": "password", "value": "customer-dev", "temporary": false }],
+      "realmRoles": ["customer"],
+      "attributes": { "customerId": ["cus_00000000-0000-0000-0000-000000000001"] }
+    },
+    {
+      "username": "administrator",
+      "enabled": true,
+      "email": "administrator@fulfillflow.dev",
+      "emailVerified": true,
+      "firstName": "Demo",
+      "lastName": "Administrator",
+      "credentials": [{ "type": "password", "value": "admin-dev", "temporary": false }],
+      "realmRoles": ["administrator"]
+    },
+    {
+      "username": "warehouse",
+      "enabled": true,
+      "email": "warehouse@fulfillflow.dev",
+      "emailVerified": true,
+      "firstName": "Demo",
+      "lastName": "Warehouse",
+      "credentials": [{ "type": "password", "value": "warehouse-dev", "temporary": false }],
+      "realmRoles": ["warehouse"]
+    },
+    {
+      "username": "courier",
+      "enabled": true,
+      "email": "courier@fulfillflow.dev",
+      "emailVerified": true,
+      "firstName": "Demo",
+      "lastName": "Courier",
+      "credentials": [{ "type": "password", "value": "courier-dev", "temporary": false }],
+      "realmRoles": ["courier"],
+      "attributes": { "courierId": ["cou_00000000-0000-0000-0000-000000000001"] }
+    }
+  ]
+}
