@@ -49,3 +49,20 @@ jobs:
             echo "::error::Expected at least 10 ADRs, found $count"
             exit 1
           fi
+
+  build:
+    name: Build Maven project
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn -B -ntp compile
