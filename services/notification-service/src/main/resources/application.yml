@@ -1,4 +1,9 @@
 server:
+
+openapi:
+  info:
+    title: FulfillFlow Notification Service API
+    description: Dispatches customer and operator notifications through simulated providers.
   port: 8084
 
 spring:

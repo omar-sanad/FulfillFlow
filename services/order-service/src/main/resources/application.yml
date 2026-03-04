@@ -1,6 +1,11 @@
 server:
   port: 8081
 
+openapi:
+  info:
+    title: FulfillFlow Order Service API
+    description: Manages customer orders, their state transitions, and publishes order lifecycle events.
+
 spring:
   application:
     name: order-service
