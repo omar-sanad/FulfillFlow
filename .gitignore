@@ -69,3 +69,8 @@ generated/
 # ----- Test reports -----
 **/surefire-reports/
 **/failsafe-reports/
+
+# ----- Local agent / AI assistant working files -----
+AGENTS.md
+.agents_tmp/
+.agents/
