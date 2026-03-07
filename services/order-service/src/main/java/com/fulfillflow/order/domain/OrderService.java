@@ -1,6 +1,12 @@
 package com.fulfillflow.order.domain;
 
 import com.fulfillflow.common.error.NotFoundException;
+import com.fulfillflow.common.events.EventTypes;
+import com.fulfillflow.common.events.payloads.OrderCancelledPayload;
+import com.fulfillflow.common.events.payloads.OrderCreatedPayload;
+import com.fulfillflow.common.events.payloads.OrderFulfilledPayload;
+import com.fulfillflow.common.events.payloads.OrderPaidPayload;
+import com.fulfillflow.common.outbox.OutboxHelper;
 import com.fulfillflow.common.security.AuthenticatedUser;
 import com.fulfillflow.common.security.SecurityContextHelper;
 import com.fulfillflow.order.model.CreateOrderRequest;
@@ -31,15 +37,18 @@ public class OrderService {
     private final OrderLineRepository lineRepository;
     private final OrderStatusHistoryRepository historyRepository;
     private final SecurityContextHelper securityContextHelper;
+    private final OutboxHelper outboxHelper;
 
     public OrderService(OrderRepository orderRepository,
                         OrderLineRepository lineRepository,
                         OrderStatusHistoryRepository historyRepository,
-                        SecurityContextHelper securityContextHelper) {
+                        SecurityContextHelper securityContextHelper,
+                        OutboxHelper outboxHelper) {
         this.orderRepository = orderRepository;
         this.lineRepository = lineRepository;
         this.historyRepository = historyRepository;
         this.securityContextHelper = securityContextHelper;
+        this.outboxHelper = outboxHelper;
     }
 
     public OrderResponse createOrder(CreateOrderRequest request) {
@@ -74,7 +83,20 @@ public class OrderService {
         historyRepository.save(new OrderStatusHistory(
                 order.getId(), null, OrderStatus.CREATED, "Order placed", user.username()));
 
+        emitOrderCreated(order, lines);
         return toResponse(order, lines);
+    }
+
+    private void emitOrderCreated(Order order, List<OrderLine> lines) {
+        List<OrderCreatedPayload.OrderLineItem> items = lines.stream()
+                .map(l -> new OrderCreatedPayload.OrderLineItem(
+                        l.getProductId(), l.getSku(), l.getName(), l.getQuantity(), l.getUnitPriceCents()))
+                .toList();
+        OrderCreatedPayload payload = new OrderCreatedPayload(
+                order.getId(), order.getCustomerId(), items,
+                order.getTotalCents(), order.getCurrency(), order.getShippingAddress().fullName());
+        outboxHelper.enqueue("Order", order.getId().toString(), EventTypes.ORDER_CREATED,
+                "orders.events.v1", order.getId(), payload);
     }
 
     @Transactional(readOnly = true)
@@ -114,8 +136,26 @@ public class OrderService {
         order = orderRepository.save(order);
         historyRepository.save(new OrderStatusHistory(
                 order.getId(), from, target, request.reason(), user.username()));
+        emitTransitionEvent(order, target, request.reason());
         List<OrderLine> lines = lineRepository.findByOrderId(orderId);
         return toResponse(order, lines);
+    }
+
+    private void emitTransitionEvent(Order order, OrderStatus target, String reason) {
+        String orderId = order.getId().toString();
+        switch (target) {
+            case PAID -> outboxHelper.enqueue("Order", orderId, EventTypes.ORDER_PAID,
+                    "orders.events.v1", order.getId(),
+                    new OrderPaidPayload(order.getId(), order.getCustomerId(),
+                            order.getTotalCents(), order.getCurrency()));
+            case FULFILLED -> outboxHelper.enqueue("Order", orderId, EventTypes.ORDER_FULFILLED,
+                    "orders.events.v1", order.getId(),
+                    new OrderFulfilledPayload(order.getId(), order.getCustomerId()));
+            case CANCELLED -> outboxHelper.enqueue("Order", orderId, EventTypes.ORDER_CANCELLED,
+                    "orders.events.v1", order.getId(),
+                    new OrderCancelledPayload(order.getId(), order.getCustomerId(), reason));
+            default -> { }
+        }
     }
 
     private Order loadOrder(UUID orderId) {
