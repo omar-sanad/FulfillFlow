@@ -19,7 +19,7 @@ import org.springframework.kafka.annotation.EnableKafka;
         SecurityContextHelper.class, OutboxHelper.class, OutboxPublisher.class,
         OutboxSchedulingConfig.class})
 @EntityScan(basePackages = {"com.fulfillflow.order", "com.fulfillflow.common.outbox"})
-@EnableJpaRepositories(basePackages = {"com.fulfillflow.order.domain", "com.fulfillflow.common.outbox"})
+@EnableJpaRepositories(basePackages = {"com.fulfillflow.order.domain", "com.fulfillflow.order.event", "com.fulfillflow.common.outbox"})
 @EnableKafka
 public class OrderServiceApplication {
 
