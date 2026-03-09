@@ -40,10 +40,14 @@ spring:
     consumer:
       group-id: delivery-service
       auto-offset-reset: earliest
+      enable-auto-commit: false
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "com.fulfillflow.*"
+        spring.json.value.default.type: com.fulfillflow.common.events.EventEnvelope
+    listener:
+      ack-mode: manual_immediate
 
 management:
   endpoints:
