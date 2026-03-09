@@ -1,6 +1,8 @@
 package com.fulfillflow.order.event;
 
 import com.fulfillflow.common.events.EventTypes;
+import com.fulfillflow.common.events.payloads.DeliveryCompletedPayload;
+import com.fulfillflow.common.events.payloads.DeliveryFailedPayload;
 import com.fulfillflow.common.events.payloads.InventoryReservationFailedPayload;
 import com.fulfillflow.order.domain.Order;
 import com.fulfillflow.order.domain.OrderRepository;
@@ -14,12 +16,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Saga coordinator (order side). Reacts to inventory events to keep the order
- * state machine consistent with stock availability:
+ * Saga coordinator (order side). Reacts to inventory and delivery events to
+ * keep the order state machine consistent with downstream services:
  * <ul>
  *   <li>inventory.reservation.failed → auto-cancel the order (compensation).</li>
  *   <li>inventory.reserved → order stays CREATED awaiting payment (no transition).</li>
- *   <li>inventory.released → no state change (order already cancelled or being compensated).</li>
+ *   <li>delivery.completed → auto-fulfil a paid order (PAID → FULFILLED).</li>
+ *   <li>delivery.failed → mark a paid order as FAILED.</li>
  * </ul>
  */
 @Service
@@ -69,5 +72,55 @@ public class OrderSagaService {
 
     public void onReleased(UUID orderId) {
         log.info("Stock released for order {}", orderId);
+    }
+
+    @Transactional
+    public void onDeliveryCompleted(DeliveryCompletedPayload payload) {
+        UUID orderId = payload.orderId();
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) {
+            log.warn("Delivery completed for unknown order {}", orderId);
+            return;
+        }
+        if (order.getStatus() == OrderStatus.FULFILLED) {
+            log.info("Order {} already fulfilled; skipping delivery.completed", orderId);
+            return;
+        }
+        OrderStatus from = order.getStatus();
+        if (!from.canTransitionTo(OrderStatus.FULFILLED)) {
+            log.warn("Cannot fulfil order {} from state {} on delivery completion", orderId, from);
+            return;
+        }
+        order.transitionTo(OrderStatus.FULFILLED, "Delivery completed");
+        orderRepository.save(order);
+        historyRepository.save(new OrderStatusHistory(
+                orderId, from, OrderStatus.FULFILLED, "Delivery completed", "saga"));
+        log.info("Auto-fulfilled order {} on delivery completion", orderId);
+    }
+
+    @Transactional
+    public void onDeliveryFailed(DeliveryFailedPayload payload) {
+        UUID orderId = payload.orderId();
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) {
+            log.warn("Delivery failed for unknown order {}", orderId);
+            return;
+        }
+        if (order.getStatus() == OrderStatus.FAILED
+                || order.getStatus() == OrderStatus.CANCELLED) {
+            log.info("Order {} already {}; skipping delivery.failed", orderId, order.getStatus());
+            return;
+        }
+        OrderStatus from = order.getStatus();
+        if (!from.canTransitionTo(OrderStatus.FAILED)) {
+            log.warn("Cannot fail order {} from state {} on delivery failure", orderId, from);
+            return;
+        }
+        String reason = "Delivery failed: " + payload.reason();
+        order.transitionTo(OrderStatus.FAILED, reason);
+        orderRepository.save(order);
+        historyRepository.save(new OrderStatusHistory(
+                orderId, from, OrderStatus.FAILED, reason, "saga"));
+        log.info("Marked order {} as failed due to delivery failure", orderId);
     }
 }
