@@ -4,6 +4,9 @@ import com.fulfillflow.common.events.EventTypes;
 import com.fulfillflow.common.events.payloads.DeliveryCompletedPayload;
 import com.fulfillflow.common.events.payloads.DeliveryFailedPayload;
 import com.fulfillflow.common.events.payloads.InventoryReservationFailedPayload;
+import com.fulfillflow.common.events.payloads.OrderCancelledPayload;
+import com.fulfillflow.common.events.payloads.OrderFulfilledPayload;
+import com.fulfillflow.common.outbox.OutboxHelper;
 import com.fulfillflow.order.domain.Order;
 import com.fulfillflow.order.domain.OrderRepository;
 import com.fulfillflow.order.domain.OrderStatus;
@@ -32,11 +35,14 @@ public class OrderSagaService {
 
     private final OrderRepository orderRepository;
     private final OrderStatusHistoryRepository historyRepository;
+    private final OutboxHelper outboxHelper;
 
     public OrderSagaService(OrderRepository orderRepository,
-                            OrderStatusHistoryRepository historyRepository) {
+                            OrderStatusHistoryRepository historyRepository,
+                            OutboxHelper outboxHelper) {
         this.orderRepository = orderRepository;
         this.historyRepository = historyRepository;
+        this.outboxHelper = outboxHelper;
     }
 
     @Transactional
@@ -95,6 +101,9 @@ public class OrderSagaService {
         orderRepository.save(order);
         historyRepository.save(new OrderStatusHistory(
                 orderId, from, OrderStatus.FULFILLED, "Delivery completed", "saga"));
+        outboxHelper.enqueue("Order", orderId.toString(), EventTypes.ORDER_FULFILLED,
+                "orders.events.v1", orderId,
+                new OrderFulfilledPayload(order.getId(), order.getCustomerId()));
         log.info("Auto-fulfilled order {} on delivery completion", orderId);
     }
 
