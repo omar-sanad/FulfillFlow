@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Package, Plus, Minus, ShoppingBag, Loader2, Check, X, PackagePlus } from 'lucide-react';
+import { Package, Plus, Minus, ShoppingBag, Loader2, Check, X, PackagePlus, XCircle } from 'lucide-react';
 import { productService, orderService } from '../lib/services';
 import { useAuth } from '../context/AuthContext';
 import { formatPrice, cn } from '../lib/utils';
@@ -106,6 +106,15 @@ export function CatalogPage() {
             className="flex items-center gap-2 px-4 py-3 rounded-xl bg-mint/10 border border-mint/30 text-mint"
           >
             <Check className="h-5 w-5" /> Order placed — redirecting to tracking…
+          </motion.div>
+        )}
+        {createOrder.error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose/10 border border-rose/30 text-rose text-sm"
+          >
+            <XCircle className="h-5 w-5 shrink-0" />
+            {createOrder.error instanceof Error ? createOrder.error.message : 'Checkout failed'}
           </motion.div>
         )}
       </AnimatePresence>

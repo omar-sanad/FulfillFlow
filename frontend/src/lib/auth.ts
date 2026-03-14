@@ -48,6 +48,43 @@ export function getAccessToken(): string | null {
   return t.access_token;
 }
 
+export function isTokenExpired(): boolean {
+  const t = loadTokens();
+  return !t || t.expires_at <= Date.now();
+}
+
+let refreshPromise: Promise<string | null> | null = null;
+
+export async function refreshAccessToken(): Promise<string | null> {
+  const t = loadTokens();
+  if (!t) return null;
+  if (t.expires_at > Date.now()) return t.access_token;
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          client_id: CLIENT_ID,
+          refresh_token: t.refresh_token,
+        }),
+      });
+      if (!res.ok) { logout(); return null; }
+      const tokens = (await res.json()) as TokenResponse;
+      saveTokens(tokens);
+      return tokens.access_token;
+    } catch {
+      logout();
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+  return refreshPromise;
+}
+
 function decodeJwt(payload: string): Record<string, unknown> {
   const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
   return JSON.parse(json);

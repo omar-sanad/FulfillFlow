@@ -71,6 +71,8 @@ export function OrderDetailPage() {
     onSuccess: () => qc.invalidateQueries(),
   });
 
+  const mutError = payMut.error || cancelMut.error || pickupMut.error || completeMut.error || failMut.error;
+
   if (orderQ.isLoading) return <div className="grid place-items-center py-24"><Loader2 className="h-8 w-8 animate-spin text-amber-glow" /></div>;
   if (!order) return <div className="glass p-12 text-center text-slate-500">Order not found. <Link to="/orders" className="text-amber-glow">Back</Link></div>;
 
@@ -81,6 +83,18 @@ export function OrderDetailPage() {
       <button onClick={() => navigate('/orders')} className="flex items-center gap-2 text-sm text-slate-400 hover:text-amber-glow transition-colors">
         <ArrowLeft className="h-4 w-4" /> All orders
       </button>
+
+      <AnimatePresence>
+        {mutError && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose/10 border border-rose/30 text-rose text-sm"
+          >
+            <XCircle className="h-5 w-5 shrink-0" />
+            <span>{mutError instanceof Error ? mutError.message : 'Action failed'}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>

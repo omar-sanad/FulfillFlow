@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import * as auth from '../lib/auth';
 import type { UserInfo } from '../lib/auth';
 
@@ -15,6 +15,18 @@ const Ctx = createContext<AuthCtx | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserInfo | null>(() => auth.currentUser());
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(() => {
+      if (auth.isTokenExpired()) {
+        auth.refreshAccessToken().then((token) => {
+          if (!token) setUser(null);
+        });
+      }
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   async function login(username: string, password: string) {
     setLoading(true);

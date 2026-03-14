@@ -1,4 +1,4 @@
-import { getAccessToken } from './auth';
+import { getAccessToken, refreshAccessToken } from './auth';
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -8,13 +8,25 @@ export class ApiError extends Error {
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const token = getAccessToken();
+  let token = getAccessToken();
+  if (!token) throw new ApiError(401, 'Not authenticated');
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(init?.headers as Record<string, string>),
   };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(url, { ...init, headers });
+  headers['Authorization'] = `Bearer ${token}`;
+
+  let res = await fetch(url, { ...init, headers });
+
+  if (res.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      headers['Authorization'] = `Bearer ${refreshed}`;
+      res = await fetch(url, { ...init, headers });
+    }
+  }
+
   if (res.status === 204) return undefined as T;
   if (!res.ok) {
     let detail = res.statusText;

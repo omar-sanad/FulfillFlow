@@ -19,6 +19,7 @@ export function DeliveriesPage() {
   const pickup = useMutation({ mutationFn: (id: string) => deliveryService.pickup(id), onSuccess: () => qc.invalidateQueries() });
   const complete = useMutation({ mutationFn: (id: string) => deliveryService.complete(id), onSuccess: () => qc.invalidateQueries() });
   const fail = useMutation({ mutationFn: (id: string) => deliveryService.fail(id, 'Could not complete'), onSuccess: () => qc.invalidateQueries() });
+  const mutError = pickup.error || complete.error || fail.error;
 
   return (
     <div className="space-y-6">
@@ -26,6 +27,13 @@ export function DeliveriesPage() {
         <h1 className="font-display font-bold text-3xl text-white">Deliveries</h1>
         <p className="text-slate-400 mt-1">Track and progress parcels through the delivery pipeline.</p>
       </div>
+
+      {mutError && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose/10 border border-rose/30 text-rose text-sm">
+          <XCircle className="h-5 w-5 shrink-0" />
+          {mutError instanceof Error ? mutError.message : 'Action failed'}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="grid place-items-center py-20"><Loader2 className="h-8 w-8 animate-spin text-amber-glow" /></div>
