@@ -164,36 +164,221 @@ identity milestone) and [`SECURITY.md`](SECURITY.md).
 
 ## 11. Local setup
 
+FulfillFlow ships in two layers: the **infrastructure** (PostgreSQL, Kafka,
+Keycloak) runs in Docker, and the **application layer** (the four Spring Boot
+services + the React frontend) runs on your host so you get hot reload and easy
+debugging. Everything below assumes you are at the repository root.
+
+> TL;DR for veterans: `make setup && make start-infra`, then
+> `mvn -q -T 1C spring-boot:run -pl services/order-service` (repeat per
+> service), then `cd frontend && npm install && npm run dev`, open
+> <http://localhost:5173>.
+
+### 11.1 Prerequisites
+
+| Tool           | Version      | Check with        |
+|----------------|--------------|-------------------|
+| Docker Engine  | 24+          | `docker --version`|
+| Docker Compose | v2 (plugin)  | `docker compose version` |
+| Java JDK       | 21           | `java -version`   |
+| Apache Maven   | 3.9+         | `mvn -v`          |
+| Node.js        | 20 LTS+      | `node -v`         |
+| npm            | 10+          | `npm -v`          |
+| GNU Make       | any          | `make -v`         |
+
+Make is optional — every `make` target below has the raw `docker compose`
+equivalent next to it, so you can run the project without it.
+
+### 11.2 Step 1 — Get the code and create your `.env`
+
 ```bash
-make setup   # one-time preparation (see Makefile)
-make start   # start Kafka, PostgreSQL, Keycloak, services, frontend
-make test    # run the test suite
-make stop    # stop everything
-make clean   # remove generated artifacts (warns before deleting data)
+git clone https://github.com/omar-sanad/FulfillFlow.git
+cd FulfillFlow
+make setup            # copies .env.example -> .env (safe to re-run)
 ```
 
-> `make start` will start Kafka, PostgreSQL databases, Keycloak, backend
-> services, the React frontend, and (optionally) the monitoring stack via a
-> separate profile. Health checks gate startup ordering.
+If you do not have `make`, do it manually:
 
-### Frontend only
+```bash
+cp .env.example .env
+```
 
-The `frontend/` directory is a standalone Vite + React + TypeScript app that
-talks to the four backend services through a dev-server proxy (`vite.config.ts`).
+The defaults in `.env` are development-only synthetic values, so no edits are
+required for a first run. Open `.env` only if you want to change ports or
+passwords.
+
+### 11.3 Step 2 — Start the infrastructure in Docker
+
+This brings up PostgreSQL (one logical DB per service), Kafka in KRaft mode
+(no ZooKeeper), topic provisioning, and Keycloak with the pre-built
+`fulfillflow` realm (roles + demo users) imported automatically.
+
+```bash
+make start-infra
+# equivalent:
+# docker compose --env-file .env -f compose.yaml up -d
+```
+
+Wait until everything is healthy (Keycloak takes ~30 s on first boot):
+
+```bash
+docker compose --env-file .env -f compose.yaml ps
+# all services should show status "healthy"
+```
+
+What is now running:
+
+| Container               | Host port | Purpose                                  |
+|-------------------------|-----------|------------------------------------------|
+| `fulfillflow-postgres`  | 5432      | 4 databases: order/inventory/delivery/notification |
+| `fulfillflow-kafka`     | 29092     | Kafka broker (KRaft)                     |
+| `fulfillflow-kafka-init`| —         | One-shot topic provisioning (exits 0)    |
+| `fulfillflow-keycloak`  | 8080      | OAuth2 / OIDC identity provider          |
+
+### 11.4 Step 3 — Build and run the backend services
+
+The backend is a multi-module Maven project (`common` + 4 services). Build it
+once so the shared `common` library installs into your local Maven cache:
+
+```bash
+mvn -q -T 1C clean install -DskipTests
+```
+
+Then start the four services. Open **four separate terminals** (or background
+each one) and run one per service:
+
+```bash
+# Terminal 1
+mvn -q spring-boot:run -pl services/inventory-service
+
+# Terminal 2
+mvn -q spring-boot:run -pl services/order-service
+
+# Terminal 3
+mvn -q spring-boot:run -pl services/delivery-service
+
+# Terminal 4
+mvn -q spring-boot:run -pl services/notification-service
+```
+
+Each service runs Flyway migrations on startup, so its database schema is
+created automatically. Verify they are up:
+
+```bash
+curl -s http://localhost:8081/actuator/health   # order
+curl -s http://localhost:8082/actuator/health   # inventory
+curl -s http://localhost:8083/actuator/health   # delivery
+curl -s http://localhost:8084/actuator/health   # notification
+# each should return {"status":"UP"}
+```
+
+| Service                | Port | API base             | Swagger UI                                |
+|------------------------|------|----------------------|-------------------------------------------|
+| order-service          | 8081 | `/api/orders`        | http://localhost:8081/swagger-ui.html     |
+| inventory-service      | 8082 | `/api/products`      | http://localhost:8082/swagger-ui.html     |
+| delivery-service       | 8083 | `/api/deliveries`    | http://localhost:8083/swagger-ui.html     |
+| notification-service   | 8084 | `/api/notifications` | http://localhost:8084/swagger-ui.html     |
+
+### 11.5 Step 4 — Run the frontend
+
+The frontend is a Vite dev server that proxies `/api/*` to the four backend
+ports and `/realms/*` to Keycloak (see `frontend/vite.config.ts`).
 
 ```bash
 cd frontend
 npm install
-npm run dev      # http://localhost:5173  (proxies /api/* to the backend ports)
-npm run build    # type-check + production build to dist/
-npm run preview  # serve the production build
+npm run dev      # serves http://localhost:5173
 ```
 
-The proxy rewrites `/api/order → :18081`, `/api/inventory → :18082`,
-`/api/delivery → :18083`, and `/api/notification → :18084`. Keycloak runs on
-`:8080`; the Vite dev origin is whitelisted in the realm.
+Open <http://localhost:5173>. The Keycloak realm already whitelists
+`http://localhost:5173` as a valid origin, so login works out of the box.
 
-Full prerequisites and troubleshooting are added in the infrastructure milestone.
+### 11.6 Step 5 — Log in and try the saga
+
+Use any **demonstration user** from section 13 (e.g. `customer` /
+`customer-dev`). The login page has one-click demo-fill buttons for the
+customer and admin accounts.
+
+Once logged in as an **administrator** you can seed the catalog, then walk the
+full order saga:
+
+```bash
+# 1. Get an access token (administrator)
+TOKEN=$(curl -s -X POST "http://localhost:8080/realms/fulfillflow/protocol/openid-connect/token" \
+  -d "grant_type=password" -d "client_id=fulfillflow-frontend" \
+  -d "username=administrator" -d "password=admin-dev" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+# 2. Create a product (administrator or warehouse role)
+curl -s -X POST http://localhost:8082/api/products \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"sku":"WIDGET-01","name":"Saga Widget","description":"Demo product","priceCents":5000,"currency":"USD","weightGrams":250}'
+
+# 3. Restock it (grab the product id from the previous response)
+curl -s -X POST http://localhost:8082/api/products/<PRODUCT_ID>/restock \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"quantity":100}'
+```
+
+Now log in to the UI as **customer** (`customer` / `customer-dev`) and:
+
+1. **Catalog** → add the product to an order.
+2. The order is created (`order.created` event), inventory reserves stock.
+3. **Orders** → open the order → **Pay**. The saga auto-schedules a delivery
+   (`delivery.scheduled`).
+4. **Deliveries** → **Pickup** (→ `IN_TRANSIT`) → **Complete**
+   (→ `delivery.completed`). The order auto-fulfils (`order.fulfilled`) and
+   inventory confirms the reservation.
+5. **Notifications** shows every event-driven email/SMS that was emitted.
+
+The compensation path: after paying, use **Fail** on the delivery instead of
+**Complete** — the order transitions to `FAILED` and the stock reservation is
+released.
+
+### 11.7 Step 6 — Stop and clean up
+
+```bash
+make stop          # stops containers, keeps data volumes
+# equivalent:
+# docker compose --env-file .env -f compose.yaml down
+
+# Stop the four Java services with Ctrl+C in each terminal.
+# Stop the frontend with Ctrl+C.
+```
+
+To wipe all persistent data (databases, Kafka, Keycloak) and start fresh:
+
+```bash
+docker compose --env-file .env -f compose.yaml down -v
+```
+
+### 11.8 Frontend only (production build)
+
+```bash
+cd frontend
+npm install
+npm run build    # type-check + production build to dist/
+npm run preview  # serve the production build on :5173
+```
+
+The proxy rewrites `/api/order → :8081`, `/api/inventory → :8082`,
+`/api/delivery → :8083`, and `/api/notification → :8084`. Keycloak runs on
+`:8080`.
+
+### 11.9 Troubleshooting
+
+- **`port is already allocated`** — another process is using a port listed in
+  `.env`. Either stop that process or change the `*_PORT` variable in `.env`.
+- **Services fail to start with a Keycloak/JWT error** — Keycloak was not yet
+  healthy. Run `docker compose ps` and wait until `fulfillflow-keycloak`
+  shows `healthy`, then restart the Java services.
+- **`No products available` in the UI** — the catalog starts empty. Log in as
+  administrator/warehouse and create + restock a product (Step 5).
+- **Login button does nothing / 401** — the access token expires (~5 min).
+  Log out and back in, or refresh the page.
+- **Flyway `validate` errors after a schema change** — run
+  `docker compose down -v` to reset the databases, then `make start-infra`
+  and restart the services.
 
 ## 12. Test instructions
 
