@@ -1,10 +1,10 @@
 server:
+  port: 8082
 
 openapi:
   info:
     title: FulfillFlow Inventory Service API
     description: Manages product stock levels and reservations against customer orders.
-  port: 8082
 
 spring:
   application:

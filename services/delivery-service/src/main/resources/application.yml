@@ -1,10 +1,10 @@
 server:
+  port: 8083
 
 openapi:
   info:
     title: FulfillFlow Delivery Service API
     description: Manages courier dispatch, delivery scheduling, and delivery lifecycle events.
-  port: 8083
 
 spring:
   application:
