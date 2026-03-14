@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Truck, Loader2, PackageCheck, XCircle, Link as LinkIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { deliveryService, orderService } from '../lib/services';
+import { useAuth } from '../context/AuthContext';
 import { DeliveryStatusBadge } from '../components/ui/StatusBadge';
 import { formatDateTime, relativeTime, shortId } from '../lib/utils';
 import type { Delivery } from '../lib/types';
@@ -11,6 +12,9 @@ export function DeliveriesPage() {
   const { data: deliveries, isLoading } = useQuery({ queryKey: ['deliveries'], queryFn: deliveryService.list, refetchInterval: 5000 });
   const qc = useQueryClient();
   const sorted = [...(deliveries ?? [])].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const { hasAnyRole } = useAuth();
+  const canManage = hasAnyRole('administrator', 'warehouse', 'courier');
 
   const pickup = useMutation({ mutationFn: (id: string) => deliveryService.pickup(id), onSuccess: () => qc.invalidateQueries() });
   const complete = useMutation({ mutationFn: (id: string) => deliveryService.complete(id), onSuccess: () => qc.invalidateQueries() });
@@ -64,7 +68,7 @@ export function DeliveriesPage() {
                 {d.failureReason && <div className="col-span-2"><div className="text-slate-500 font-mono uppercase tracking-wider mb-0.5">Reason</div><div className="text-rose text-sm">{d.failureReason}</div></div>}
               </div>
 
-              {(d.status === 'SCHEDULED' || d.status === 'IN_TRANSIT') && (
+              {canManage && (d.status === 'SCHEDULED' || d.status === 'IN_TRANSIT') && (
                 <div className="flex gap-2 mt-4">
                   {d.status === 'SCHEDULED' && (
                     <button onClick={() => pickup.mutate(d.id)} disabled={pickup.isPending} className="btn-ghost text-xs py-2 flex-1">

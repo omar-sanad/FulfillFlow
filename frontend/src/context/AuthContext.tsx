@@ -7,6 +7,7 @@ interface AuthCtx {
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  hasAnyRole: (...roles: string[]) => boolean;
 }
 
 const Ctx = createContext<AuthCtx | undefined>(undefined);
@@ -30,7 +31,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
-  return <Ctx.Provider value={{ user, loading, login, logout }}>{children}</Ctx.Provider>;
+  function hasAnyRole(...roles: string[]) {
+    return !!user && roles.some((r) => user.roles.includes(r));
+  }
+
+  return <Ctx.Provider value={{ user, loading, login, logout, hasAnyRole }}>{children}</Ctx.Provider>;
 }
 
 export function useAuth() {

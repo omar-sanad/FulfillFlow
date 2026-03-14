@@ -5,6 +5,7 @@ import {
   ArrowLeft, CreditCard, XCircle, Truck, CheckCircle2, Clock, Loader2, MapPin, User, Bell,
 } from 'lucide-react';
 import { orderService, deliveryService, notificationService } from '../lib/services';
+import { useAuth } from '../context/AuthContext';
 import { OrderStatusBadge, DeliveryStatusBadge } from '../components/ui/StatusBadge';
 import { formatPrice, formatDateTime, shortId } from '../lib/utils';
 import type { Order, Delivery, Notification } from '../lib/types';
@@ -36,6 +37,10 @@ export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+
+  const { hasAnyRole } = useAuth();
+  const canManageDelivery = hasAnyRole('administrator', 'warehouse', 'courier');
+  const canManageOrder = hasAnyRole('customer', 'administrator');
 
   const orderQ = useQuery({
     queryKey: ['order', id], queryFn: () => orderService.get(id!),
@@ -86,12 +91,12 @@ export function OrderDetailPage() {
           <p className="text-slate-400 mt-1 text-sm">Created {formatDateTime(order.createdAt)} · {order.lines.length} line(s)</p>
         </div>
         <div className="flex gap-2">
-          {order.status === 'CREATED' && (
+          {canManageOrder && order.status === 'CREATED' && (
             <button onClick={() => payMut.mutate()} disabled={payMut.isPending} className="btn-primary text-sm">
               {payMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CreditCard className="h-4 w-4" /> Pay</>}
             </button>
           )}
-          {(order.status === 'CREATED' || order.status === 'PAID') && (
+          {canManageOrder && (order.status === 'CREATED' || order.status === 'PAID') && (
             <button onClick={() => cancelMut.mutate('Customer requested cancellation')} disabled={cancelMut.isPending} className="btn-ghost text-sm text-rose hover:border-rose/40 hover:text-rose">
               {cancelMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />} Cancel
             </button>
@@ -140,23 +145,25 @@ export function OrderDetailPage() {
                 <div className="flex justify-between"><span className="text-slate-500">Tracking</span><span className="text-cyan-live">{delivery.trackingNumber}</span></div>
                 <div className="flex justify-between"><span className="text-slate-500">Courier</span><span className="text-slate-300">{delivery.courierId}</span></div>
               </div>
-              <div className="flex flex-wrap gap-2 mt-4">
-                {delivery.status === 'SCHEDULED' && (
-                  <button onClick={() => pickupMut.mutate()} disabled={pickupMut.isPending} className="btn-primary text-xs py-2">
-                    {pickupMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Truck className="h-3.5 w-3.5" /> Pickup</>}
-                  </button>
-                )}
-                {delivery.status === 'IN_TRANSIT' && (
-                  <button onClick={() => completeMut.mutate()} disabled={completeMut.isPending} className="btn-primary text-xs py-2">
-                    {completeMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><CheckCircle2 className="h-3.5 w-3.5" /> Complete</>}
-                  </button>
-                )}
-                {(delivery.status === 'SCHEDULED' || delivery.status === 'IN_TRANSIT') && (
-                  <button onClick={() => failMut.mutate('Courier could not complete delivery')} disabled={failMut.isPending} className="btn-ghost text-xs py-2 text-rose hover:border-rose/40 hover:text-rose">
-                    {failMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />} Fail
-                  </button>
-                )}
-              </div>
+              {canManageDelivery && (
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {delivery.status === 'SCHEDULED' && (
+                    <button onClick={() => pickupMut.mutate()} disabled={pickupMut.isPending} className="btn-primary text-xs py-2">
+                      {pickupMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Truck className="h-3.5 w-3.5" /> Pickup</>}
+                    </button>
+                  )}
+                  {delivery.status === 'IN_TRANSIT' && (
+                    <button onClick={() => completeMut.mutate()} disabled={completeMut.isPending} className="btn-primary text-xs py-2">
+                      {completeMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><CheckCircle2 className="h-3.5 w-3.5" /> Complete</>}
+                    </button>
+                  )}
+                  {(delivery.status === 'SCHEDULED' || delivery.status === 'IN_TRANSIT') && (
+                    <button onClick={() => failMut.mutate('Courier could not complete delivery')} disabled={failMut.isPending} className="btn-ghost text-xs py-2 text-rose hover:border-rose/40 hover:text-rose">
+                      {failMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />} Fail
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
