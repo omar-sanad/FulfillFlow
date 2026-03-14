@@ -176,6 +176,23 @@ make clean   # remove generated artifacts (warns before deleting data)
 > services, the React frontend, and (optionally) the monitoring stack via a
 > separate profile. Health checks gate startup ordering.
 
+### Frontend only
+
+The `frontend/` directory is a standalone Vite + React + TypeScript app that
+talks to the four backend services through a dev-server proxy (`vite.config.ts`).
+
+```bash
+cd frontend
+npm install
+npm run dev      # http://localhost:5173  (proxies /api/* to the backend ports)
+npm run build    # type-check + production build to dist/
+npm run preview  # serve the production build
+```
+
+The proxy rewrites `/api/order → :18081`, `/api/inventory → :18082`,
+`/api/delivery → :18083`, and `/api/notification → :18084`. Keycloak runs on
+`:8080`; the Vite dev origin is whitelisted in the realm.
+
 Full prerequisites and troubleshooting are added in the infrastructure milestone.
 
 ## 12. Test instructions
@@ -186,9 +203,17 @@ Full prerequisites and troubleshooting are added in the infrastructure milestone
 
 ## 13. Demonstration users
 
-> Seeded synthetic users (customer, administrator, warehouse, courier) are added
-> in the identity milestone. Development-only credentials will be listed here and
-> in `.env.example`.
+Seeded synthetic Keycloak users (created by `infra/keycloak/fulfillflow-realm.json`):
+
+| Role      | Username  | Password        |
+|-----------|-----------|-----------------|
+| customer  | customer  | customer-dev    |
+| admin     | admin     | admin-dev       |
+| warehouse | warehouse | warehouse-dev   |
+| courier   | courier   | courier-dev      |
+
+The login screen exposes one-click demo-fill buttons for the customer and
+admin accounts.
 
 ## 14. Screenshots
 
