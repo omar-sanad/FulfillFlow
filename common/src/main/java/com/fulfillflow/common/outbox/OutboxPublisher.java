@@ -12,13 +12,17 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Polls the transactional outbox and publishes due messages to Kafka.
  * <p>
- * Each candidate is marked IN_PROGRESS, then published within a new
- * transaction. On success it is marked SENT; on failure it is rescheduled
- * with exponential backoff, or moved to FAILED after exhausting retries.
+ * Each candidate is marked IN_PROGRESS, then published. On success it is
+ * marked SENT; on failure it is rescheduled with exponential backoff, or
+ * moved to FAILED after exhausting retries. State updates in the async
+ * Kafka callback use {@link TransactionTemplate} because the callback fires
+ * on a different thread where Spring's proxy-based {@code @Transactional}
+ * (defeated by self-invocation) would not apply.
  */
 @Component
 public class OutboxPublisher {
@@ -28,17 +32,20 @@ public class OutboxPublisher {
     private final OutboxMessageRepository outboxRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
     private final int batchSize;
     private final int maxRetries;
 
     public OutboxPublisher(OutboxMessageRepository outboxRepository,
                           KafkaTemplate<String, Object> kafkaTemplate,
                           ObjectMapper objectMapper,
+                          TransactionTemplate transactionTemplate,
                           @Value("${fulfillflow.outbox.batch-size:50}") int batchSize,
                           @Value("${fulfillflow.outbox.max-retries:10}") int maxRetries) {
         this.outboxRepository = outboxRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
+        this.transactionTemplate = transactionTemplate;
         this.batchSize = batchSize;
         this.maxRetries = maxRetries;
     }
@@ -51,12 +58,16 @@ public class OutboxPublisher {
         }
         log.debug("Publishing {} outbox messages", due.size());
         for (OutboxMessage message : due) {
-            publishOne(message);
+            publishOne(message.getId());
         }
     }
 
     @Transactional
-    public void publishOne(OutboxMessage message) {
+    public void publishOne(Long messageId) {
+        OutboxMessage message = outboxRepository.findById(messageId).orElse(null);
+        if (message == null) {
+            return;
+        }
         message.markInProgress();
         outboxRepository.saveAndFlush(message);
         try {
@@ -71,27 +82,31 @@ public class OutboxPublisher {
             kafkaTemplate.send(message.getTopic(), message.getAggregateId(), envelope)
                     .whenComplete((result, ex) -> {
                         if (ex != null) {
-                            handleFailure(message, ex);
+                            handleFailure(messageId, ex);
                         } else {
-                            handleSuccess(message);
+                            handleSuccess(messageId);
                         }
                     });
         } catch (Exception e) {
-            handleFailure(message, e);
+            handleFailure(messageId, e);
         }
     }
 
-    @Transactional
-    public void handleSuccess(OutboxMessage message) {
-        message.markSent();
-        outboxRepository.save(message);
+    private void handleSuccess(Long messageId) {
+        transactionTemplate.executeWithoutResult(status ->
+                outboxRepository.findById(messageId).ifPresent(message -> {
+                    message.markSent();
+                    outboxRepository.save(message);
+                }));
     }
 
-    @Transactional
-    public void handleFailure(OutboxMessage message, Throwable ex) {
-        log.warn("Failed to publish outbox message {} (retry {}): {}",
-                message.getId(), message.getRetryCount(), ex.toString());
-        message.scheduleRetry(maxRetries);
-        outboxRepository.save(message);
+    private void handleFailure(Long messageId, Throwable ex) {
+        log.warn("Failed to publish outbox message {} (retry): {}",
+                messageId, ex.toString());
+        transactionTemplate.executeWithoutResult(status ->
+                outboxRepository.findById(messageId).ifPresent(message -> {
+                    message.scheduleRetry(maxRetries);
+                    outboxRepository.save(message);
+                }));
     }
 }

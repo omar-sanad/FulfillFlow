@@ -30,7 +30,7 @@ spring:
           jwk-set-uri: ${KEYCLOAK_URL:http://localhost:8080}/realms/fulfillflow/protocol/openid-connect/certs
           issuer-uri: ${KEYCLOAK_URL:http://localhost:8080}/realms/fulfillflow
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:${KAFKA_BOOTSTRAP:localhost:29092}}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
