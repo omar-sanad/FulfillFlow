@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="320" viewBox="0 0 1400 320" role="img" aria-labelledby="title desc">
+  <title id="title">FulfillFlow reliability model</title>
+  <desc id="desc">A REST command commits domain state and an outbox record together, publishes to Kafka, and is processed through a consumed-event ledger by an idempotent handler.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#64748b"/></marker>
+    <style>.title{font:700 25px Arial,sans-serif;fill:#0f172a}.label{font:700 14px Arial,sans-serif;fill:#0f172a}.sub{font:12px Arial,sans-serif;fill:#475569}.line{stroke:#64748b;stroke-width:2;fill:none;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1400" height="320" rx="20" fill="#f8fafc"/>
+  <text x="700" y="42" text-anchor="middle" class="title">Reliable Event Publication and Consumption</text>
+  <rect x="30" y="125" width="145" height="64" rx="12" fill="#dbeafe" stroke="#3b82f6"/><text x="102" y="151" text-anchor="middle" class="label">REST command</text><text x="102" y="171" text-anchor="middle" class="sub">business request</text>
+  <rect x="215" y="86" width="270" height="142" rx="16" fill="#f0fdf4" stroke="#22c55e" stroke-width="2"/><text x="350" y="111" text-anchor="middle" class="label">One local transaction</text><rect x="242" y="130" width="100" height="65" rx="9" fill="#fff" stroke="#86efac"/><text x="292" y="155" text-anchor="middle" class="label">Domain</text><text x="292" y="174" text-anchor="middle" class="sub">state</text><rect x="358" y="130" width="100" height="65" rx="9" fill="#fff" stroke="#86efac"/><text x="408" y="155" text-anchor="middle" class="label">Outbox</text><text x="408" y="174" text-anchor="middle" class="sub">event row</text>
+  <rect x="525" y="125" width="160" height="64" rx="12" fill="#fff7ed" stroke="#f97316"/><text x="605" y="151" text-anchor="middle" class="label">Outbox publisher</text><text x="605" y="171" text-anchor="middle" class="sub">scheduled polling</text>
+  <rect x="725" y="125" width="135" height="64" rx="28" fill="#ffedd5" stroke="#f97316" stroke-width="2"/><text x="792" y="151" text-anchor="middle" class="label">Kafka topic</text><text x="792" y="171" text-anchor="middle" class="sub">at-least-once</text>
+  <rect x="900" y="125" width="170" height="64" rx="12" fill="#fdf4ff" stroke="#a855f7"/><text x="985" y="151" text-anchor="middle" class="label">Consumed events</text><text x="985" y="171" text-anchor="middle" class="sub">duplicate ledger</text>
+  <rect x="1110" y="125" width="150" height="64" rx="12" fill="#fdf4ff" stroke="#a855f7"/><text x="1185" y="151" text-anchor="middle" class="label">Event handler</text><text x="1185" y="171" text-anchor="middle" class="sub">idempotent logic</text>
+  <rect x="1300" y="125" width="75" height="64" rx="12" fill="#dcfce7" stroke="#22c55e"/><text x="1337" y="151" text-anchor="middle" class="label">Local</text><text x="1337" y="171" text-anchor="middle" class="sub">change</text>
+  <path d="M175 157 H215" class="line"/><path d="M485 157 H525" class="line"/><path d="M685 157 H725" class="line"/><path d="M860 157 H900" class="line"/><path d="M1070 157 H1110" class="line"/><path d="M1260 157 H1300" class="line"/>
+  <text x="350" y="262" text-anchor="middle" class="sub">Domain change and event cannot be committed separately</text><text x="1075" y="262" text-anchor="middle" class="sub">A repeated event ID is safely skipped</text>
+</svg>

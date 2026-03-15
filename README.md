@@ -1,455 +1,398 @@
-# FulfillFlow
+# FulfillFlow — Event-Driven Order Fulfilment Platform
 
-> An event-driven order-fulfilment and delivery-management platform built as a
-> portfolio project. All products, users, orders, and operational data are
-> **100% synthetic** -- no real employer data, credentials, or business rules are
-> represented anywhere in this repository.
+<p align="center">
+  A full-stack order fulfilment and delivery-management platform built to
+  demonstrate reliable event-driven microservices with Java, Spring Boot,
+  Apache Kafka, PostgreSQL, Keycloak, React, and TypeScript.
+</p>
 
-FulfillFlow demonstrates a production-style, distributed backend: customers place
-orders, inventory is reserved, deliveries are scheduled, and notifications are
-generated -- all coordinated through choreographed Kafka events with reliable
-outbox publication, idempotent consumption, saga compensation, and full
-observability.
+<p align="center">
+  <img alt="Java 21" src="https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white">
+  <img alt="Spring Boot 3.3" src="https://img.shields.io/badge/Spring_Boot-3.3-6DB33F?logo=springboot&logoColor=white">
+  <img alt="Apache Kafka" src="https://img.shields.io/badge/Apache_Kafka-3.7-231F20?logo=apachekafka&logoColor=white">
+  <img alt="PostgreSQL 16" src="https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white">
+  <img alt="React 18" src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white">
+  <img alt="TypeScript 5.4" src="https://img.shields.io/badge/TypeScript-5.4-3178C6?logo=typescript&logoColor=white">
+  <img alt="Docker Compose" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white">
+</p>
 
----
+> **Project status:** Portfolio project under active development. The four core
+> services, Kafka event flow, transactional outbox, consumed-event ledger,
+> Keycloak security, PostgreSQL migrations, and React interface are present.
+> Production monitoring, comprehensive automated tests, and hardened deployment
+> manifests remain roadmap work.
 
-## 1. Project purpose
+All users, products, orders, credentials, and business rules in this repository
+are synthetic and intended for local demonstration only.
 
-FulfillFlow exists to demonstrate end-to-end engineering of a reliable
-event-driven system: domain modelling, asynchronous orchestration, failure
-compensation, and operational tooling. It is a learning and portfolio artifact,
-not a commercial product.
+## Overview
 
-## 2. Portfolio context
+FulfillFlow models the journey of an order across independently owned business
+capabilities. A customer browses the catalogue, places and pays for an order,
+inventory reserves stock, delivery schedules and completes the shipment, and
+the notification service records the resulting messages.
 
-This is a personal portfolio project. It is designed to evidence senior-level
-full-stack and distributed-systems skills:
+Instead of sharing one database or coordinating every step through synchronous
+HTTP calls, the services publish and consume domain events through Kafka. This
+makes the project a practical demonstration of eventual consistency, local
+transactions, asynchronous workflows, duplicate-message handling, and failure
+compensation.
 
-- Java/Spring Boot microservices with Spring for Apache Kafka
-- React/TypeScript frontends with accessible, role-aware UI
-- Reliable messaging (transactional outbox, idempotent consumers, dead-letter)
-- Choreography-based sagas with compensation
-- PostgreSQL per-service data ownership with Flyway migrations
-- OAuth2/OIDC auth via Keycloak
-- Testcontainers-based integration testing
-- Docker Compose local run + Kubernetes manifests
-- Observability (logs, metrics, traces)
+## Product Preview
 
-## 3. Main features
+<p align="center">
+  <img src="./screenshots/login.png" width="49%" alt="FulfillFlow login page">
+  <img src="./screenshots/catalog.png" width="49%" alt="FulfillFlow product catalogue">
+</p>
 
-- **Customer flow:** browse catalogue, cart, checkout, order creation, order
-  timeline, live status, notifications, cancellation.
-- **Order lifecycle:** PENDING_INVENTORY -> INVENTORY_RESERVED -> DELIVERY_PENDING
-  -> CONFIRMED -> PICKED_UP -> IN_TRANSIT -> DELIVERED, plus cancellation paths.
-- **Inventory:** atomic multi-product reservations, no oversell, release on
-  compensation, stock adjustments.
-- **Delivery:** courier assignment, state-machine transitions, failure handling.
-- **Notification:** simulated providers (no real email/SMS), inspectable records.
-- **Resilience:** transactional outbox, idempotent consumers, retry + dead-letter,
-  controlled replay, compensation.
-- **Operations:** admin dashboards, failed-workflow inspection, dead-letter
-  inspection, authorized replay.
-- **Observability:** structured logging, metrics, distributed tracing.
+<p align="center">
+  <img src="./screenshots/orders.png" width="49%" alt="FulfillFlow orders page">
+  <img src="./screenshots/orders%20details.png" width="49%" alt="FulfillFlow order details and timeline">
+</p>
 
-## 4. Technology stack
+<p align="center">
+  <img src="./screenshots/notifications.png" width="80%" alt="FulfillFlow notifications page">
+</p>
 
-> Selected mutually compatible **stable** versions. See
-> [`docs/architecture/versions.md`](docs/architecture/versions.md) for the full
-> selection rationale.
+## Key Features
 
-| Layer | Technology | Version |
-|---|---|---|
-| Backend language | Java | 21 (LTS) |
-| Backend framework | Spring Boot | 3.3.x |
-| Messaging | Apache Kafka (KRaft mode) | 3.7.x |
-| Persistence | PostgreSQL | 16 |
-| Migrations | Flyway | (managed by Spring Boot BOM) |
-| Identity | Keycloak (OAuth2/OIDC) | 25.x |
-| Frontend language | TypeScript (strict) | 5.4.x |
-| Frontend framework | React | 18.x |
-| Frontend build | Vite | 5.x |
-| Data fetching | TanStack Query | 5.x |
-| Forms | React Hook Form | 7.x |
-| Validation | Zod | 3.x |
-| Frontend testing | Vitest + Testing Library | latest stable |
-| E2E testing | Playwright | latest stable |
-| Backend testing | JUnit 5, AssertJ, Testcontainers, Awaitility, REST Assured | latest stable |
-| Containerization | Docker / Docker Compose | Compose v2 |
-| Orchestration | Kubernetes (manifests) | - |
-| Metrics | Prometheus | latest stable |
-| Dashboards | Grafana | latest stable |
-| Tracing | OpenTelemetry Collector + Jaeger/Tempo | latest stable |
-| CI/CD | GitHub Actions | - |
+| Area | Capabilities |
+| --- | --- |
+| Customer experience | Secure login, product catalogue, order creation, order history, detailed order view, status timeline, and cancellation |
+| Order management | Validated state transitions, line items, shipping addresses, ownership checks, and lifecycle events |
+| Inventory | Product management, restocking, stock reservations, confirmation, release, and insufficient-stock handling |
+| Delivery | Automatic scheduling after payment, pickup, completion, and failure workflows |
+| Notifications | Event-driven, inspectable notification records using simulated channels—no real email or SMS is sent |
+| Reliable messaging | Domain-based Kafka topics, transactional outbox, at-least-once delivery, and consumed-event deduplication |
+| Security | Keycloak realm, OAuth2/OIDC resource servers, JWT validation, roles, and resource ownership checks |
+| API experience | REST endpoints, request validation, consistent errors, health endpoints, and Swagger/OpenAPI UI |
 
-## 5. Architecture diagram
+## Architecture
 
+FulfillFlow is a monorepo containing four independently runnable Spring Boot
+services and one React application. Every service owns its data and communicates
+with other domains through versioned Kafka topics.
+
+<p align="center">
+  <img src="./docs/architecture/system-architecture.svg" width="100%" alt="FulfillFlow system architecture">
+</p>
+
+### Successful order workflow
+
+<p align="center">
+  <img src="./docs/architecture/order-workflow.svg" width="100%" alt="FulfillFlow successful order workflow">
+</p>
+
+### Reliability model
+
+<p align="center">
+  <img src="./docs/architecture/reliability-model.svg" width="100%" alt="FulfillFlow transactional outbox and idempotent consumer model">
+</p>
+
+## Microservices
+
+| Service | Port | Owns | Representative events |
+| --- | ---: | --- | --- |
+| Order Service | 8081 | Orders, lines, shipping addresses, state history | `order.created`, `order.paid`, `order.cancelled`, `order.fulfilled` |
+| Inventory Service | 8082 | Products, stock levels, reservations | `inventory.reserved`, `inventory.reservation.failed`, `inventory.released` |
+| Delivery Service | 8083 | Deliveries and delivery state | `delivery.scheduled`, `delivery.completed`, `delivery.failed` |
+| Notification Service | 8084 | Simulated notification records | `notification.requested`, `notification.sent` |
+
+Kafka uses versioned, domain-oriented topics:
+
+```text
+orders.events.v1
+inventory.events.v1
+deliveries.events.v1
+notifications.events.v1
 ```
-                         +-------------+
-                         |   Frontend  |  React + TypeScript (Vite)
-                         +------+------+
-                                | REST (OAuth2 Access Code + PKCE)
-                                v
-        +-----------+----------+----------+-----------+
-        v           v          v          v           v
-   +---------+ +---------+ +---------+ +-------------+
-   |  Order  | |Inventory| |Delivery | |Notification |   Spring Boot
-   | Service | | Service | | Service | |   Service   |   (resource servers)
-   +----+----+ +----+----+ +----+----+ +------+------+
-        |          |          |             |
-        |  Each service owns its own PostgreSQL database |
-        +-------+----------+----+------+------+
-                v          v           v
-            +---------------------------------+
-            |       Apache Kafka (KRaft)     |  choreographed events
-            +---------------------------------+
-                         ^
-        +----------------+-----------------+
-        |   Keycloak (OAuth2 / OIDC)       |
-        +---------------------------------+
+
+The aggregate identifier is used as the Kafka message key so events for the
+same aggregate are routed to the same partition and retain per-aggregate order.
+
+## Technology Stack
+
+| Layer | Technologies |
+| --- | --- |
+| Frontend | React 18, TypeScript, Vite, React Router, TanStack Query, React Hook Form, Zod, Tailwind CSS, Framer Motion, Recharts, Lucide React |
+| Backend | Java 21, Spring Boot 3.3, Spring Web, Spring Validation, Spring Data JPA, Spring Security, Spring for Apache Kafka |
+| Data | PostgreSQL 16, Hibernate/JPA, Flyway migrations, database-per-service ownership |
+| Messaging | Apache Kafka in KRaft mode, JSON event envelopes, domain topics, consumer groups, transactional outbox |
+| Identity | Keycloak 25, OAuth2/OpenID Connect, JWT bearer tokens, role-based authorization |
+| API and operations | Spring Boot Actuator, springdoc OpenAPI/Swagger UI, structured service logs |
+| Local infrastructure | Docker, Docker Compose, Maven multi-module build, npm |
+| Test dependencies | JUnit 5, Spring Boot Test, Spring Security Test, Spring Kafka Test, Testcontainers |
+
+See [`docs/architecture/versions.md`](./docs/architecture/versions.md) for the
+version-selection rationale.
+
+## Engineering Concepts Demonstrated
+
+- **Service-owned data:** no service reads or writes another service's tables.
+- **Transactional outbox:** domain state and its event record are committed in
+  one local transaction before asynchronous Kafka publication.
+- **Idempotent consumption:** consumed event IDs are recorded so redelivery does
+  not repeat a business operation.
+- **Choreography-based saga:** services react to events without a central
+  workflow orchestrator.
+- **Compensation:** failed inventory or delivery steps trigger business actions
+  that move the workflow into a safe state.
+- **Eventual consistency:** service views converge through events rather than a
+  cross-service database transaction.
+- **State machines:** order, reservation, and delivery transitions enforce valid
+  lifecycle changes.
+- **Role and ownership authorization:** backend rules protect both role-specific
+  operations and customer-owned resources.
+
+The architectural decisions and their trade-offs are documented in
+[`docs/adr`](./docs/adr).
+
+## Repository Structure
+
+```text
+.
+├── common/                         # Shared events, errors, security, and outbox code
+├── services/
+│   ├── order-service/              # Order API and order-side saga reactions
+│   ├── inventory-service/          # Catalogue, stock, and reservations
+│   ├── delivery-service/           # Delivery scheduling and lifecycle
+│   └── notification-service/       # Simulated notification records
+├── frontend/                       # React + TypeScript web application
+├── infrastructure/
+│   ├── docker/kafka/               # Kafka topic provisioning
+│   ├── docker/postgres/            # Per-service database initialization
+│   ├── keycloak/realm/             # Development realm, roles, and demo users
+│   ├── kubernetes/                 # Reserved for deployment manifests
+│   └── monitoring/                 # Reserved for observability configuration
+├── contracts/
+│   ├── asyncapi/                   # Reserved for AsyncAPI contracts
+│   └── event-schemas/              # Reserved for versioned event schemas
+├── docs/
+│   ├── adr/                        # Architecture Decision Records
+│   ├── api/                        # Reserved for API documentation
+│   ├── architecture/               # Architecture diagrams and version notes
+│   ├── demonstrations/             # Reserved for demonstration guides
+│   └── testing/                    # Reserved for testing documentation
+├── screenshots/                    # Product interface screenshots
+├── scripts/                        # Local setup utilities
+├── compose.yaml                    # PostgreSQL, Kafka, and Keycloak
+├── Makefile                        # Local development shortcuts
+└── pom.xml                         # Maven parent and module definitions
 ```
 
-Detailed sequence diagrams (successful order + compensation) are added in later
-milestones under [`docs/architecture/`](docs/architecture/).
+## Getting Started
 
-## 6. Successful order sequence diagram
+The recommended development setup runs PostgreSQL, Kafka, and Keycloak in
+Docker while the four Spring Boot services and Vite frontend run on the host.
+This gives the application fast reload and keeps the infrastructure repeatable.
 
-> Added in the event contracts milestone. See
-> [`docs/architecture/sequence-success.md`](docs/architecture/sequence-success.md)
-> (placeholder during Milestone 0).
+### Prerequisites
 
-## 7. Compensation sequence diagram
+| Tool | Recommended version |
+| --- | --- |
+| Docker Engine + Docker Compose | Docker 24+ / Compose v2 |
+| Java JDK | 21 |
+| Maven | 3.9+ |
+| Node.js | 20 LTS+ |
+| npm | 10+ |
+| Make | Optional |
 
-> Added in the compensation milestone. See
-> [`docs/architecture/sequence-compensation.md`](docs/architecture/sequence-compensation.md)
-> (placeholder during Milestone 0).
-
-## 8. Service and port table
-
-| Component | Port(s) | Notes |
-|---|---|---|
-| Order Service | 8081 | REST API + actuator |
-| Inventory Service | 8082 | REST API + actuator |
-| Delivery Service | 8083 | REST API + actuator |
-| Notification Service | 8084 | REST API + actuator |
-| Frontend (Vite dev) | 5173 | React dev server |
-| PostgreSQL (host) | 5432 | distinct DBs per service |
-| Kafka brokers | 9092 (internal), 29092 (host) | KRaft mode |
-| Keycloak | 8080 | realm `fulfillflow` |
-| Prometheus | 9095 | monitoring profile |
-| Grafana | 3000 | monitoring profile |
-| Jaeger UI | 16686 | monitoring profile |
-
-> Exact host-port mappings are finalized in the infrastructure milestone and
-> reflected in [`.env.example`](.env.example) and `compose.yaml`.
-
-## 9. Event catalogue
-
-> Documented in [`contracts/event-schemas/`](contracts/event-schemas/) and
-> [`docs/api/events.md`](docs/api/events.md) in the event contracts milestone.
-> Includes the event envelope and all domain events (OrderCreated,
-> InventoryReserved, DeliveryScheduled, etc.).
-
-## 10. Security model
-
-- OAuth2 / OpenID Connect via Keycloak.
-- React uses Authorization Code flow with PKCE.
-- Backend services validate JWT access tokens (Spring OAuth2 Resource Server).
-- Role-level and ownership-level authorization enforced server-side; identity is
-  derived from validated token claims, never from request bodies.
-- Narrow CORS, security headers, no secrets in the repo. Development-only
-  credentials are documented in `.env.example`.
-
-See [`docs/architecture/security.md`](docs/architecture/security.md) (added in the
-identity milestone) and [`SECURITY.md`](SECURITY.md).
-
-## 11. Local setup
-
-FulfillFlow ships in two layers: the **infrastructure** (PostgreSQL, Kafka,
-Keycloak) runs in Docker, and the **application layer** (the four Spring Boot
-services + the React frontend) runs on your host so you get hot reload and easy
-debugging. Everything below assumes you are at the repository root.
-
-> TL;DR for veterans: `make setup && make start-infra`, then
-> `mvn -q -T 1C spring-boot:run -pl services/order-service` (repeat per
-> service), then `cd frontend && npm install && npm run dev`, open
-> <http://localhost:5173>.
-
-### 11.1 Prerequisites
-
-| Tool           | Version      | Check with        |
-|----------------|--------------|-------------------|
-| Docker Engine  | 24+          | `docker --version`|
-| Docker Compose | v2 (plugin)  | `docker compose version` |
-| Java JDK       | 21           | `java -version`   |
-| Apache Maven   | 3.9+         | `mvn -v`          |
-| Node.js        | 20 LTS+      | `node -v`         |
-| npm            | 10+          | `npm -v`          |
-| GNU Make       | any          | `make -v`         |
-
-Make is optional — every `make` target below has the raw `docker compose`
-equivalent next to it, so you can run the project without it.
-
-### 11.2 Step 1 — Get the code and create your `.env`
+### 1. Clone and configure
 
 ```bash
 git clone https://github.com/omar-sanad/FulfillFlow.git
 cd FulfillFlow
-make setup            # copies .env.example -> .env (safe to re-run)
+make setup
 ```
 
-If you do not have `make`, do it manually:
+Without Make:
 
 ```bash
 cp .env.example .env
 ```
 
-The defaults in `.env` are development-only synthetic values, so no edits are
-required for a first run. Open `.env` only if you want to change ports or
-passwords.
+The supplied values are local, synthetic development credentials. Never place
+production credentials in `.env` or commit that file.
 
-### 11.3 Step 2 — Start the infrastructure in Docker
-
-This brings up PostgreSQL (one logical DB per service), Kafka in KRaft mode
-(no ZooKeeper), topic provisioning, and Keycloak with the pre-built
-`fulfillflow` realm (roles + demo users) imported automatically.
+### 2. Start the infrastructure
 
 ```bash
 make start-infra
-# equivalent:
-# docker compose --env-file .env -f compose.yaml up -d
 ```
 
-Wait until everything is healthy (Keycloak takes ~30 s on first boot):
+Equivalent Docker Compose command:
+
+```bash
+docker compose --env-file .env -f compose.yaml up -d
+```
+
+Check readiness:
 
 ```bash
 docker compose --env-file .env -f compose.yaml ps
-# all services should show status "healthy"
 ```
 
-What is now running:
+Wait until PostgreSQL, Kafka, and Keycloak report `healthy`. The one-shot
+`kafka-init` container should exit successfully after creating the topics.
 
-| Container               | Host port | Purpose                                  |
-|-------------------------|-----------|------------------------------------------|
-| `fulfillflow-postgres`  | 5432      | 4 databases: order/inventory/delivery/notification |
-| `fulfillflow-kafka`     | 29092     | Kafka broker (KRaft)                     |
-| `fulfillflow-kafka-init`| —         | One-shot topic provisioning (exits 0)    |
-| `fulfillflow-keycloak`  | 8080      | OAuth2 / OIDC identity provider          |
+### 3. Build the backend
 
-### 11.4 Step 3 — Build and run the backend services
-
-The backend is a multi-module Maven project (`common` + 4 services). Build it
-once so the shared `common` library installs into your local Maven cache:
+From the repository root:
 
 ```bash
-mvn -q -T 1C clean install -DskipTests
+mvn clean install -DskipTests
 ```
 
-Then start the four services. Open **four separate terminals** (or background
-each one) and run one per service:
+This builds the Maven modules and installs the shared `common` module in your
+local Maven repository.
+
+### 4. Run the four backend services
+
+Open four terminals at the repository root. `KAFKA_BOOTSTRAP` points host-run
+applications to Kafka's exposed port.
 
 ```bash
-# Terminal 1
-mvn -q spring-boot:run -pl services/inventory-service
-
-# Terminal 2
-mvn -q spring-boot:run -pl services/order-service
-
-# Terminal 3
-mvn -q spring-boot:run -pl services/delivery-service
-
-# Terminal 4
-mvn -q spring-boot:run -pl services/notification-service
+# Terminal 1 — Order Service
+KAFKA_BOOTSTRAP=localhost:29092 mvn spring-boot:run -pl services/order-service
 ```
-
-Each service runs Flyway migrations on startup, so its database schema is
-created automatically. Verify they are up:
 
 ```bash
-curl -s http://localhost:8081/actuator/health   # order
-curl -s http://localhost:8082/actuator/health   # inventory
-curl -s http://localhost:8083/actuator/health   # delivery
-curl -s http://localhost:8084/actuator/health   # notification
-# each should return {"status":"UP"}
+# Terminal 2 — Inventory Service
+KAFKA_BOOTSTRAP=localhost:29092 mvn spring-boot:run -pl services/inventory-service
 ```
 
-| Service                | Port | API base             | Swagger UI                                |
-|------------------------|------|----------------------|-------------------------------------------|
-| order-service          | 8081 | `/api/orders`        | http://localhost:8081/swagger-ui.html     |
-| inventory-service      | 8082 | `/api/products`      | http://localhost:8082/swagger-ui.html     |
-| delivery-service       | 8083 | `/api/deliveries`    | http://localhost:8083/swagger-ui.html     |
-| notification-service   | 8084 | `/api/notifications` | http://localhost:8084/swagger-ui.html     |
+```bash
+# Terminal 3 — Delivery Service
+KAFKA_BOOTSTRAP=localhost:29092 mvn spring-boot:run -pl services/delivery-service
+```
 
-### 11.5 Step 4 — Run the frontend
+```bash
+# Terminal 4 — Notification Service
+KAFKA_BOOTSTRAP=localhost:29092 mvn spring-boot:run -pl services/notification-service
+```
 
-The frontend is a Vite dev server that proxies `/api/*` to the four backend
-ports and `/realms/*` to Keycloak (see `frontend/vite.config.ts`).
+Flyway applies each service's database migrations during startup.
+
+### 5. Run the frontend
+
+In a fifth terminal:
 
 ```bash
 cd frontend
 npm install
-npm run dev      # serves http://localhost:5173
+npm run dev
 ```
 
-Open <http://localhost:5173>. The Keycloak realm already whitelists
-`http://localhost:5173` as a valid origin, so login works out of the box.
+Open [http://localhost:5173](http://localhost:5173). Vite proxies each frontend
+API namespace to its corresponding backend service.
 
-### 11.6 Step 5 — Log in and try the saga
+### 6. Verify the services
 
-Use any **demonstration user** from section 13 (e.g. `customer` /
-`customer-dev`). The login page has one-click demo-fill buttons for the
-customer and admin accounts.
+| Component | URL |
+| --- | --- |
+| Frontend | [http://localhost:5173](http://localhost:5173) |
+| Keycloak | [http://localhost:8080](http://localhost:8080) |
+| Order health | [http://localhost:8081/actuator/health](http://localhost:8081/actuator/health) |
+| Inventory health | [http://localhost:8082/actuator/health](http://localhost:8082/actuator/health) |
+| Delivery health | [http://localhost:8083/actuator/health](http://localhost:8083/actuator/health) |
+| Notification health | [http://localhost:8084/actuator/health](http://localhost:8084/actuator/health) |
+| Order Swagger UI | [http://localhost:8081/swagger-ui.html](http://localhost:8081/swagger-ui.html) |
+| Inventory Swagger UI | [http://localhost:8082/swagger-ui.html](http://localhost:8082/swagger-ui.html) |
+| Delivery Swagger UI | [http://localhost:8083/swagger-ui.html](http://localhost:8083/swagger-ui.html) |
+| Notification Swagger UI | [http://localhost:8084/swagger-ui.html](http://localhost:8084/swagger-ui.html) |
 
-Once logged in as an **administrator** you can seed the catalog, then walk the
-full order saga:
+### 7. Stop the project
+
+Stop each locally running Spring Boot or Vite process with `Ctrl+C`, then stop
+the infrastructure while preserving its volumes:
 
 ```bash
-# 1. Get an access token (administrator)
-TOKEN=$(curl -s -X POST "http://localhost:8080/realms/fulfillflow/protocol/openid-connect/token" \
-  -d "grant_type=password" -d "client_id=fulfillflow-frontend" \
-  -d "username=administrator" -d "password=admin-dev" \
-  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
-
-# 2. Create a product (administrator or warehouse role)
-curl -s -X POST http://localhost:8082/api/products \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"sku":"WIDGET-01","name":"Saga Widget","description":"Demo product","priceCents":5000,"currency":"USD","weightGrams":250}'
-
-# 3. Restock it (grab the product id from the previous response)
-curl -s -X POST http://localhost:8082/api/products/<PRODUCT_ID>/restock \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"quantity":100}'
+make stop
 ```
 
-Now log in to the UI as **customer** (`customer` / `customer-dev`) and:
-
-1. **Catalog** → add the product to an order.
-2. The order is created (`order.created` event), inventory reserves stock.
-3. **Orders** → open the order → **Pay**. The saga auto-schedules a delivery
-   (`delivery.scheduled`).
-4. **Deliveries** → **Pickup** (→ `IN_TRANSIT`) → **Complete**
-   (→ `delivery.completed`). The order auto-fulfils (`order.fulfilled`) and
-   inventory confirms the reservation.
-5. **Notifications** shows every event-driven email/SMS that was emitted.
-
-The compensation path: after paying, use **Fail** on the delivery instead of
-**Complete** — the order transitions to `FAILED` and the stock reservation is
-released.
-
-### 11.7 Step 6 — Stop and clean up
-
-```bash
-make stop          # stops containers, keeps data volumes
-# equivalent:
-# docker compose --env-file .env -f compose.yaml down
-
-# Stop the four Java services with Ctrl+C in each terminal.
-# Stop the frontend with Ctrl+C.
-```
-
-To wipe all persistent data (databases, Kafka, Keycloak) and start fresh:
+To remove all local FulfillFlow database, Kafka, and Keycloak volume data:
 
 ```bash
 docker compose --env-file .env -f compose.yaml down -v
 ```
 
-### 11.8 Frontend only (production build)
+## Demo Accounts
+
+The imported Keycloak realm contains these synthetic users:
+
+| Role | Username | Password |
+| --- | --- | --- |
+| Customer | `customer` | `customer-dev` |
+| Administrator | `administrator` | `admin-dev` |
+| Warehouse | `warehouse` | `warehouse-dev` |
+| Courier | `courier` | `courier-dev` |
+
+These credentials are strictly for local development.
+
+## API Overview
+
+| Domain | Representative endpoints |
+| --- | --- |
+| Orders | `GET/POST /api/orders`, `GET /api/orders/{id}`, `GET /api/orders/{id}/timeline`, `POST /api/orders/{id}/transitions` |
+| Products | `GET/POST /api/products`, `GET /api/products/{id}`, `POST /api/products/{id}/restock`, `DELETE /api/products/{id}` |
+| Deliveries | `GET /api/deliveries`, `GET /api/deliveries/by-order/{orderId}`, `POST /api/deliveries/{id}/pickup`, `/complete`, `/fail` |
+| Notifications | `GET /api/notifications`, `GET /api/notifications/{id}`, `GET /api/notifications/by-order/{orderId}` |
+
+The backend services expose their complete OpenAPI definitions and interactive
+Swagger interfaces at the URLs listed above.
+
+## Useful Commands
 
 ```bash
-cd frontend
-npm install
-npm run build    # type-check + production build to dist/
-npm run preview  # serve the production build on :5173
+# Compile and package all backend modules
+mvn clean verify
+
+# Build and type-check the frontend
+cd frontend && npm run build
+
+# Show infrastructure status
+make status
+
+# Follow infrastructure logs
+make logs
+
+# Stop infrastructure without deleting data
+make stop
 ```
 
-The proxy rewrites `/api/order → :8081`, `/api/inventory → :8082`,
-`/api/delivery → :8083`, and `/api/notification → :8084`. Keycloak runs on
-`:8080`.
+## Architecture Decisions
 
-### 11.9 Troubleshooting
+The project records major decisions as ADRs so the context and trade-offs remain
+visible:
 
-- **`port is already allocated`** — another process is using a port listed in
-  `.env`. Either stop that process or change the `*_PORT` variable in `.env`.
-- **Services fail to start with a Keycloak/JWT error** — Keycloak was not yet
-  healthy. Run `docker compose ps` and wait until `fulfillflow-keycloak`
-  shows `healthy`, then restart the Java services.
-- **`No products available` in the UI** — the catalog starts empty. Log in as
-  administrator/warehouse and create + restock a product (Step 5).
-- **Login button does nothing / 401** — the access token expires (~5 min).
-  Log out and back in, or refresh the page.
-- **Flyway `validate` errors after a schema change** — run
-  `docker compose down -v` to reset the databases, then `make start-infra`
-  and restart the services.
+1. [Microservice boundaries](./docs/adr/001-microservices.md)
+2. [Kafka topics and partitioning](./docs/adr/002-kafka-topic-and-partitioning.md)
+3. [Transactional outbox](./docs/adr/003-transactional-outbox.md)
+4. [Idempotent consumers](./docs/adr/004-idempotent-consumers.md)
+5. [Choreography-based saga](./docs/adr/005-choreography-based-saga.md)
+6. [Database ownership](./docs/adr/006-database-ownership.md)
+7. [Keycloak authentication](./docs/adr/007-keycloak-authentication.md)
+8. [Inventory concurrency control](./docs/adr/008-inventory-concurrency-control.md)
+9. [Retry and dead-letter strategy](./docs/adr/009-retry-and-dead-letter.md)
+10. [Observability strategy](./docs/adr/010-observability.md)
 
-## 12. Test instructions
 
-> Backend unit + Testcontainers integration tests, Vitest component tests, and
-> Playwright E2E tests are added progressively per milestone. See
-> [`docs/testing/`](docs/testing/) for the evolving strategy.
+## Engineering Highlights
 
-## 13. Demonstration users
+This repository demonstrates:
 
-Seeded synthetic Keycloak users (created by `infra/keycloak/fulfillflow-realm.json`):
+- decomposition of an order workflow into independently owned domain services
+- asynchronous, event-driven communication with Kafka
+- reliable event publication without a database/Kafka dual write
+- duplicate-safe handling under at-least-once message delivery
+- saga collaboration and compensating actions across service boundaries
+- relational domain modelling and versioned migrations per service
+- JWT-based authentication plus role and ownership authorization
+- a typed, role-aware React interface over multiple backend APIs
+- documented architectural reasoning through Architecture Decision Records
 
-| Role      | Username  | Password        |
-|-----------|-----------|-----------------|
-| customer  | customer  | customer-dev    |
-| admin     | admin     | admin-dev       |
-| warehouse | warehouse | warehouse-dev   |
-| courier   | courier   | courier-dev      |
 
-The login screen exposes one-click demo-fill buttons for the customer and
-admin accounts.
+## Author
 
-## 14. Screenshots
-
-> Added during the React and operations milestones.
-
-## 15. Observability instructions
-
-> Structured JSON logging, Prometheus metrics, and OpenTelemetry tracing are
-> wired up in the observability milestone. Dashboards and trace-viewing
-> instructions will be documented under
-> [`docs/architecture/observability.md`](docs/architecture/observability.md).
-
-## 16. Known limitations
-
-- No real payment processing (simulated or future extension).
-- Local demonstration manifests are not production-hardened; managed PostgreSQL
-  and Kafka should be used in production.
-- Realtime status updates may begin as polling and migrate to SSE/WebSocket.
-
-## 17. Roadmap
-
-See the milestone list in the project specification; the roadmap tracks the
-fifteen milestones from repository foundation to portfolio release.
-
-## 18. License
-
-Released under the MIT License. See [`LICENSE`](LICENSE).
-
-## 19. Synthetic data statement
-
-**All data in FulfillFlow is synthetic.** Product names, users, orders,
-inventory, couriers, and operational records are generated for demonstration
-only. No real person, employer, customer, or proprietary business rule is
-represented.
-
-## 20. Hardest engineering problems solved
-
-> This section is updated as milestones land. Anticipated hard problems:
-
-- **Reliable event publication without dual-writes:** the transactional outbox
-  pattern keeps domain state and outbox events atomic within one DB transaction.
-- **Idempotent consumption under at-least-once delivery:** inbox tables with a
-  unique `eventId` constraint make duplicate Kafka delivery a no-op.
-- **Concurrency without oversell:** explicit concurrency control for multi-product
-  atomic reservations in the inventory service.
-- **Saga compensation:** choreography-based failure handling that releases
-  reservations and cancels deliveries while keeping order state consistent.
-
----
-
-## Status
-
-**Milestone 0 -- Repository foundation** is complete. Later milestones build the
-infrastructure, services, frontend, and observability layers incrementally.
+**Omar Sanad**<br>
+[GitHub](https://github.com/omar-sanad)
