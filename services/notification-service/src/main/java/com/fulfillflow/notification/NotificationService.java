@@ -96,7 +96,7 @@ public class NotificationService {
                 || channel == NotificationChannel.PUSH;
     }
 
-    private String renderSubject(String template, Map<String, String> variables) {
+    String renderSubject(String template, Map<String, String> variables) {
         return switch (template) {
             case "order.created" -> "Order confirmed — #" + variables.getOrDefault("orderId", "—");
             case "order.paid" -> "Payment received — #" + variables.getOrDefault("orderId", "—");
@@ -109,7 +109,7 @@ public class NotificationService {
         };
     }
 
-    private String renderBody(String template, Map<String, String> variables) {
+    String renderBody(String template, Map<String, String> variables) {
         String orderId = variables.getOrDefault("orderId", "—");
         return switch (template) {
             case "order.created" -> "Thanks for your order " + orderId + ". We're reserving your items now.";
