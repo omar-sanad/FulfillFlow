@@ -46,9 +46,11 @@ start-monitoring: ## Start the monitoring stack (Prometheus, Grafana, Jaeger)
 stop: ## Stop the local stack (keeps volumes/data)
 	$(COMPOSE) --env-file $(ENV_FILE) -f $(COMPOSE_FILE) --profile services --profile frontend --profile monitoring down
 
-test: ## Run backend and frontend tests (added in later milestones)
-	@echo "Backend and frontend test runners are added in later milestones."
-	@echo "For now, run service-specific tests from each service directory."
+test: ## Run backend unit tests
+	mvn -B -ntp test
+
+test-frontend: ## Run frontend tests
+	cd frontend && npm run test -- --run
 
 status: ## Show running compose services
 	$(COMPOSE) --env-file $(ENV_FILE) -f $(COMPOSE_FILE) ps

@@ -51,7 +51,7 @@ jobs:
           fi
 
   build:
-    name: Build Maven project
+    name: Build and test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -64,5 +64,5 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Build with Maven
-        run: mvn -B -ntp compile
+      - name: Build and run unit tests
+        run: mvn -B -ntp test
