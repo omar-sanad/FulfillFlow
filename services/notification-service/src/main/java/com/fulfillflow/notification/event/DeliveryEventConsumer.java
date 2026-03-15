@@ -54,6 +54,7 @@ public class DeliveryEventConsumer {
         } catch (Exception e) {
             log.error("Failed to process event {} ({}): {}", envelope.eventType(),
                     envelope.messageId(), e.getMessage(), e);
+            throw e;
         }
     }
 
